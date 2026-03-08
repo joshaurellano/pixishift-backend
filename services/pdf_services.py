@@ -7,6 +7,8 @@ import zipfile
 import subprocess
 import tempfile
 import os
+from pdf2docx import Converter
+
 
 ALLOWED_TYPES = {
     'docx': (
@@ -105,3 +107,34 @@ async def pdf_to_img(file: UploadFile):
             media_type="application/zip",
             headers={"Content-Disposition": f"attachment; filename={base_name}_pages.zip"}
         )
+async def pdf_to_docx(file: UploadFile):
+    if file.content_type != 'application/pdf':
+        return {'message': 'File is not a pdf'}
+    
+    contents = await file.read()
+    user_file = pymupdf.open(stream=contents, filetype="pdf")
+    base_name = Path(file.filename).stem
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_path = os.path.join(tmpdir, file.filename)
+        output_path = os.path.join(tmpdir, f"{base_name}.docx")
+
+        # Write pdf to temporary path
+        with open(input_path, 'wb') as f:
+            f.write(contents)
+    
+        cv = Converter(input_path)
+        cv.convert(output_path)
+        cv.close()
+
+        with open(output_path, 'rb') as f:
+            docx_bytes = f.read()
+
+    output_buffer = BytesIO(docx_bytes)
+    output_buffer.seek(0)
+
+    return StreamingResponse(
+        output_buffer,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f"attachment; filename={base_name}.docx"}
+    )
