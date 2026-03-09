@@ -8,26 +8,12 @@ import subprocess
 import tempfile
 import os
 from pdf2docx import Converter
-
-
-ALLOWED_TYPES = {
-    'docx': (
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/msword',
-        'application/wps-office.docx'
-    ),
-    'xlsx': (
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-excel',
-        'application/wps-office.xlsx'
-    ),
-    'ppt': (
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'application/vnd.ms-powerpoint',
-        'application/wps-office.ppt',
-        'application/wps-office.pptx'
-    ),
-}
+from config.settings import (
+    MAX_BATCH_FILES,
+    MAX_FILE_SIZE_MB,
+    ALLOWED_IMAGE_FORMATS,
+    ALLOWED_TYPES
+)
 
 # ---- Helper ----
 

@@ -32,4 +32,10 @@ async def batch_convert(
     files: List[UploadFile],
     out_img_format: str
 ):
-    return await batch_img_services.batch_img_convert(files, out_img_format)
+    return await batch_img_services.batch_img_convert(files)
+
+@router.post("/batch-remove")
+async def batch_remove(
+    files: List[UploadFile],
+):
+    return await batch_img_services.batch_img_remove_bg(files)
