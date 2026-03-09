@@ -1,5 +1,7 @@
 from fastapi import APIRouter, UploadFile
 from services import image_services
+from services import batch_img_services
+from typing import List
 
 router = APIRouter()
 
@@ -24,3 +26,10 @@ async def resize_image(
     dpi: int = 96
     ):
     return await image_services.img_resize(file, img_width, img_height, unit, dpi)
+
+@router.post("/batch-convert")
+async def batch_convert(
+    files: List[UploadFile],
+    out_img_format: str
+):
+    return await batch_img_services.batch_img_convert(files, out_img_format)
