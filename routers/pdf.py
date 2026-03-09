@@ -18,3 +18,7 @@ async def convert_xlsx_to_pdf(file: UploadFile):
 @router.post("/ppt2pdf")
 async def convert_ppt_to_pdf(file: UploadFile):
     return await pdf_services.ppt_to_pdf(file)
+
+@router.post("/pdf2docx")
+async def convert_pdf_to_docx(file: UploadFile):
+    return await pdf_services.pdf_to_docx(file)
