@@ -39,3 +39,10 @@ async def batch_remove(
     files: List[UploadFile],
 ):
     return await batch_img_services.batch_img_remove_bg(files)
+
+@router.post("/batch-compress")
+async def batch_remove(
+    files: List[UploadFile],
+    quality: int = 80
+):
+    return await batch_img_services.batch_img_compress(files, quality)

@@ -58,7 +58,7 @@ async def batch_img_convert(files: List[UploadFile], out_img_format: str):
         headers={"Content-Disposition": "attachment; filename=pixishift_converted.zip"}
     )
 
-async def batch_img_remove_bg(files: List[UploadFile]):
+async def batch_img_remove_bg(files: List[UploadFile], quality: int = 80):
     # Validate batch size
     if len(files) > MAX_BATCH_FILES:
         return {'message': f'Maximum {MAX_BATCH_FILES} files allowed per batch'}
@@ -92,4 +92,44 @@ async def batch_img_remove_bg(files: List[UploadFile]):
         zip_buffer,
         media_type="application/zip",
         headers={"Content-Disposition": "attachment; filename=pixishift_removedbg.zip"}
+    )
+
+async def batch_img_compress(files: List[UploadFile], quality: int = 80):
+
+    if len(files) > MAX_BATCH_FILES:
+        return {'message': f'Maximum {MAX_BATCH_FILES} files allowed per batch'}
+
+    zip_buffer = BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+        for file in files:
+            if 'image' not in file.content_type:
+                continue
+
+            contents = await file.read()
+            img = Image.open(BytesIO(contents))
+
+            img_name = Path(file.filename).stem
+            img_format = img.format
+
+            if img_format in ('JPEG', 'JPG', 'BMP'):
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+
+
+            output_buffer = BytesIO()
+            img.save(output_buffer, format=img_format, quality=quality, optimize=True)
+            output_buffer.seek(0)
+
+            zip_file.writestr(
+                f"{img_name}_compressed.{img_format.lower()}",
+                output_buffer.read()
+            )
+
+    zip_buffer.seek(0)
+
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=pixishift_compressed.zip"}
     )
