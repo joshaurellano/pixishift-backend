@@ -2,7 +2,6 @@ from PIL import Image
 from fastapi.responses import StreamingResponse
 from io import BytesIO
 from pathlib import Path
-from rembg import remove
 from utils.img_utils import convert_to_pixels
 
 
@@ -39,6 +38,7 @@ async def convert(file, out_img_format: str):
     )
 
 async def remove_bg(file):
+    from rembg import remove
     if 'image' not in file.content_type:
         return {'message': 'File is not an image'}
 

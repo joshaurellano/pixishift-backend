@@ -16,7 +16,7 @@ app.add_middleware(
 app.include_router(images_routes.router)
 app.include_router(pdf_routes.router)
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def root():
     return {"message": "Root"}
 
