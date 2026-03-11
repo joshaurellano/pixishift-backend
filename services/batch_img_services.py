@@ -6,6 +6,7 @@ from rembg import remove
 from fastapi import UploadFile
 from fastapi.responses import StreamingResponse
 from pathlib import Path
+from utils.img_utils import convert_to_pixels
 from config.settings import (
     MAX_BATCH_FILES,
     MAX_FILE_SIZE_MB,
@@ -132,4 +133,116 @@ async def batch_img_compress(files: List[UploadFile], quality: int = 80):
         zip_buffer,
         media_type="application/zip",
         headers={"Content-Disposition": "attachment; filename=pixishift_compressed.zip"}
+    )
+
+async def batch_add_img_watermark(
+    files, 
+    watermark_img):
+
+    if len(files) > MAX_BATCH_FILES:
+        return {'message': f'Maximum {MAX_BATCH_FILES} files allowed per batch'}
+
+    if 'image' not in watermark_img.content_type:
+        return {'message': 'Watermark is not an image'}
+    
+    zip_buffer = BytesIO()
+
+    watermark_img_contents = await watermark_img.read()
+    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+        for file in files:
+            if 'image' not in file.content_type:
+                continue
+
+            img_contents = await file.read()
+
+            img = Image.open(BytesIO(img_contents))
+            watermark = Image.open(BytesIO(watermark_img_contents))
+
+            img_name = Path(file.filename).stem
+            img_format = img.format
+
+            target_width = 100  
+            aspect_ratio = float(target_width) / watermark.width
+            target_height = int(watermark.height * aspect_ratio)
+            watermark = watermark.resize((target_width, target_height),Image.Resampling.LANCZOS)
+            
+            watermarked_image = img.copy()
+            position = (img.width - watermark.width, img.height - watermark.height)
+
+            if watermark.mode == 'RGBA':
+                if watermarked_image.mode != 'RGBA':
+                    watermarked_image = watermarked_image.convert('RGBA')
+                watermarked_image.paste(watermark, position, mask=watermark)
+            else:
+                watermarked_image.paste(watermark, position)
+
+            if img_format.upper() in ('JPEG', 'JPG') and watermarked_image.mode == 'RGBA':
+                watermarked_image = watermarked_image.convert('RGB')
+
+            output_buffer = BytesIO()
+            watermarked_image.save(output_buffer, format=img_format)
+            output_buffer.seek(0)
+
+            zip_file.writestr(
+                f"{img_name}_watermarked.{img_format.lower()}",
+                output_buffer.read()
+            )
+
+    zip_buffer.seek(0)
+
+    return StreamingResponse(
+        zip_buffer,
+        media_type=f"application/zip",
+        headers={"Content-Disposition": f"attachment; filename=pixishift_watermarked.zip"}
+    )
+
+async def batch_img_resize(
+        files, 
+        img_width: float, 
+        img_height: float,
+        unit: str = "px",
+        dpi: int = 96):
+
+    if len(files) > MAX_BATCH_FILES:
+        return {'message': f'Maximum {MAX_BATCH_FILES} files allowed per batch'}
+        
+    zip_buffer = BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+        for file in files:
+            if 'image' not in file.content_type:
+                continue
+    
+            allowed_units = ['px', 'in', 'cm', 'mm']
+            if unit.lower() not in allowed_units:
+                return {'message': f'Unit not supported. Use: {allowed_units}'}
+            
+            final_width = convert_to_pixels(img_width, unit, dpi)
+            final_height = convert_to_pixels(img_height, unit, dpi)
+
+            if not final_width or not final_height:
+                return {'message': 'Invalid dimensions'}
+
+            contents = await file.read()
+            img = Image.open(BytesIO(contents))
+            img_format = img.format
+            img_name = Path(file.filename).stem
+            
+            img = img.resize((final_width, final_height), Image.LANCZOS)
+
+            output_buffer = BytesIO()
+            img.save(output_buffer, format=img_format)
+            output_buffer.seek(0)
+
+            zip_file.writestr(
+                f"{img_name}_resized.{img_format.lower()}",
+                output_buffer.read()
+            )
+    
+    zip_buffer.seek(0)
+
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename=pixishift_resized.zip"}
     )

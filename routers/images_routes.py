@@ -59,4 +59,20 @@ async def batch_remove(
 ):
     return await batch_img_services.batch_img_compress(files, quality)
 
+@router.post("/batch-watermark")
+async def batch_remove(
+    files: List[UploadFile],
+    watermark_img: UploadFile
+):
+    return await batch_img_services.batch_add_img_watermark(files, watermark_img)
+
+@router.post("/batch-resize")
+async def batch_resize(
+    files: List[UploadFile],
+    img_width: float, 
+    img_height: float,
+    unit: str = "px",
+    dpi: int = 96
+):
+    return await batch_img_services.batch_img_resize(files, img_width, img_height, unit, dpi)
     
