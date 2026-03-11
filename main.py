@@ -1,7 +1,17 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from routers import images_routes, pdf_routes
+import uvicorn
+import os
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 app.include_router(images_routes.router)
 app.include_router(pdf_routes.router)
@@ -9,3 +19,7 @@ app.include_router(pdf_routes.router)
 @app.get("/")
 async def root():
     return {"message": "Root"}
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
