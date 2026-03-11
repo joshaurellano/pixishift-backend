@@ -8,6 +8,14 @@ router = APIRouter()
 async def convert_pdf_to_img(file: UploadFile):
     return await pdf_services.pdf_to_img(file)
 
+@router.post("/pdfmerge")
+async def merge_pdf(files: List[UploadFile]):
+    return await pdf_services.merge_pdf(files)
+
+@router.post("/pdfcompressed")
+async def compress_pdf(file: UploadFile):
+    return await pdf_services.compress_pdf(file)
+
 @router.post("/docx2pdf")
 async def convert_docx_to_pdf(file: UploadFile):
     return await pdf_services.docx_to_pdf(file)
