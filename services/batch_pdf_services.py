@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import os
 from pdf2docx import Converter
+from utils.libreoffice_path_utils import get_libreoffice_path
 from config.settings import (
     MAX_BATCH_FILES,
     MAX_FILE_SIZE_MB,
@@ -39,7 +40,7 @@ async def batch_convert_to_pdf(files: List[UploadFile], file_type: str):
                     f.write(contents)
 
                 subprocess.run([
-                    'libreoffice', '--headless', '--convert-to', 'pdf',
+                    get_libreoffice_path(), '--headless', '--convert-to', 'pdf',
                     '--outdir', tmpdir, input_path
                 ], check=True)
 
