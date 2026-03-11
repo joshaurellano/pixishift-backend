@@ -2,4 +2,4 @@ fastapi[standard]
 Pillow
 pymupdf
 rembg[cpu]
-docx2pdf
+pdf2docx

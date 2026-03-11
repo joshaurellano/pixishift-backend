@@ -3,29 +3,19 @@ from fastapi import UploadFile
 from io import BytesIO
 from pathlib import Path
 import pymupdf
+from PIL import Image
 import zipfile
 import subprocess
 import tempfile
 import os
-
-ALLOWED_TYPES = {
-    'docx': (
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/msword',
-        'application/wps-office.docx'
-    ),
-    'xlsx': (
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-excel',
-        'application/wps-office.xlsx'
-    ),
-    'ppt': (
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'application/vnd.ms-powerpoint',
-        'application/wps-office.ppt',
-        'application/wps-office.pptx'
-    ),
-}
+from pdf2docx import Converter
+from utils.libreoffice_path_utils import get_libreoffice_path
+from config.settings import (
+    MAX_BATCH_FILES,
+    MAX_FILE_SIZE_MB,
+    ALLOWED_IMAGE_FORMATS,
+    ALLOWED_TYPES
+)
 
 # ---- Helper ----
 
@@ -42,7 +32,7 @@ async def convert_to_pdf(file: UploadFile, file_type: str):
             f.write(contents)
 
         subprocess.run([
-            'libreoffice', '--headless', '--convert-to', 'pdf',
+            get_libreoffice_path(), '--headless', '--convert-to', 'pdf',
             '--outdir', tmpdir, input_path
         ], check=True)
 
@@ -105,3 +95,90 @@ async def pdf_to_img(file: UploadFile):
             media_type="application/zip",
             headers={"Content-Disposition": f"attachment; filename={base_name}_pages.zip"}
         )
+async def pdf_to_docx(file: UploadFile):
+    if file.content_type != 'application/pdf':
+        return {'message': 'File is not a pdf'}
+    
+    contents = await file.read()
+    base_name = Path(file.filename).stem
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_path = os.path.join(tmpdir, file.filename)
+        output_path = os.path.join(tmpdir, f"{base_name}.docx")
+
+        # Write pdf to temporary path
+        with open(input_path, 'wb') as f:
+            f.write(contents)
+    
+        cv = Converter(input_path)
+        cv.convert(output_path)
+        cv.close()
+
+        with open(output_path, 'rb') as f:
+            docx_bytes = f.read()
+
+    output_buffer = BytesIO(docx_bytes)
+    output_buffer.seek(0)
+
+    return StreamingResponse(
+        output_buffer,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f"attachment; filename={base_name}.docx"}
+    )
+
+async def merge_pdf(files):
+    if len(files) > MAX_BATCH_FILES:
+        return {'message': f'Maximum {MAX_BATCH_FILES} files allowed per batch'}
+    
+    merged_pdf = pymupdf.open()
+    for file in files:
+        if file.content_type != 'application/pdf':
+            continue
+        
+        contents = await file.read()
+
+        pdf_document = pymupdf.open(stream=contents, filetype="pdf")
+        merged_pdf.insert_pdf(pdf_document)
+
+    output_buffer = BytesIO()
+
+    merged_pdf.save(output_buffer)
+
+    output_buffer.seek(0)
+
+    return StreamingResponse(
+        output_buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=pixishift_merged.pdf"}
+    )
+
+async def compress_pdf(file):
+    
+    if file.content_type != 'application/pdf':
+        return {'message':'File is not a pdf'}
+    
+    contents = await file.read()
+    base_name = Path(file.filename).stem
+
+    pdf_file = pymupdf.open(stream=contents, filetype='pdf')
+
+    output_buffer = BytesIO()
+
+    pdf_file.save(output_buffer, garbage=4, deflate=True, clean=True)
+    
+    original_size = len(contents)
+    
+    output_buffer.seek(0)
+    compressed_size = len(output_buffer.read())
+    output_buffer.seek(0)
+
+    savings = round((1 - compressed_size / original_size) * 100, 2)
+    print(f"Reduced by {savings}%")
+    
+    return StreamingResponse(
+        output_buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={base_name}_compressed.pdf"}
+    )
+        
+        
