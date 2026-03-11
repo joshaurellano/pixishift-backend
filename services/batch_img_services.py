@@ -2,7 +2,6 @@ from typing import List
 import zipfile
 from io import BytesIO
 from PIL import Image
-from rembg import remove
 from fastapi import UploadFile
 from fastapi.responses import StreamingResponse
 from pathlib import Path
@@ -60,6 +59,7 @@ async def batch_img_convert(files: List[UploadFile], out_img_format: str):
     )
 
 async def batch_img_remove_bg(files: List[UploadFile], quality: int = 80):
+    from rembg import remove
     # Validate batch size
     if len(files) > MAX_BATCH_FILES:
         return {'message': f'Maximum {MAX_BATCH_FILES} files allowed per batch'}
