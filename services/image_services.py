@@ -117,3 +117,86 @@ async def img_resize(
         media_type=f"image/{img_format.lower()}",
         headers={"Content-Disposition": f"attachment; filename={img_name}_resized.{img_format.lower()}"}
     )
+
+async def add_img_watermark(
+    file, 
+    watermark_img):
+
+    if 'image' not in file.content_type:
+        return {'message': 'File is not an image'}
+
+    if 'image' not in watermark_img.content_type:
+        return {'message': 'Watermark is not an image'}
+
+    img_contents = await file.read()
+    watermark_img_contents = await watermark_img.read()
+
+    img = Image.open(BytesIO(img_contents))
+    watermark = Image.open(BytesIO(watermark_img_contents))
+
+    img_name = Path(file.filename).stem
+    img_format = img.format
+
+    target_width = 200  
+    aspect_ratio = float(target_width) / watermark.width
+    target_height = int(watermark.height * aspect_ratio)
+    watermark = watermark.resize((target_width, target_height),Image.Resampling.LANCZOS)
+    
+    watermarked_image = img.copy()
+    position = (img.width - watermark.width, img.height - watermark.height)
+
+    if watermark.mode == 'RGBA':
+        if watermarked_image.mode != 'RGBA':
+            watermarked_image = watermarked_image.convert('RGBA')
+        watermarked_image.paste(watermark, position, mask=watermark)
+    else:
+        watermarked_image.paste(watermark, position)
+
+    if img_format.upper() in ('JPEG', 'JPG') and watermarked_image.mode == 'RGBA':
+        watermarked_image = watermarked_image.convert('RGB')
+
+    output_buffer = BytesIO()
+    watermarked_image.save(output_buffer, format=img_format)
+    output_buffer.seek(0)
+
+    return StreamingResponse(
+        output_buffer,
+        media_type=f"image/{img_format.lower()}",
+        headers={"Content-Disposition": f"attachment; filename={img_name}_watermarked.{img_format.lower()}"}
+    )
+
+async def image_to_pdf(files):
+
+    images = []
+
+    for file in files:
+        if 'image' not in file.content_type:
+            return {'message': 'File is not an image'}
+        
+        contents = await file.read()
+        img = Image.open(BytesIO(contents))
+
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        images.append(img)
+
+    if not images:
+        return {'message': 'No valid images provided'}
+        
+    output_buffer = BytesIO()
+
+    images[0].save(
+        output_buffer,
+        format="PDF",
+        save_all=True,
+        append_images=images[1:]
+    )
+        
+    output_buffer.seek(0)
+
+    return StreamingResponse(
+        output_buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=pixishift_images.pdf"}
+    )

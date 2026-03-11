@@ -3,6 +3,7 @@ from fastapi import UploadFile
 from io import BytesIO
 from pathlib import Path
 import pymupdf
+from PIL import Image
 import zipfile
 import subprocess
 import tempfile
@@ -124,3 +125,5 @@ async def pdf_to_docx(file: UploadFile):
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f"attachment; filename={base_name}.docx"}
     )
+
+            
