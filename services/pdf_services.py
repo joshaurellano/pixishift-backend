@@ -126,4 +126,59 @@ async def pdf_to_docx(file: UploadFile):
         headers={"Content-Disposition": f"attachment; filename={base_name}.docx"}
     )
 
-            
+async def merge_pdf(files):
+    if len(files) > MAX_BATCH_FILES:
+        return {'message': f'Maximum {MAX_BATCH_FILES} files allowed per batch'}
+    
+    merged_pdf = pymupdf.open()
+    for file in files:
+        if file.content_type != 'application/pdf':
+            continue
+        
+        contents = await file.read()
+
+        pdf_document = pymupdf.open(stream=contents, filetype="pdf")
+        merged_pdf.insert_pdf(pdf_document)
+
+    output_buffer = BytesIO()
+
+    merged_pdf.save(output_buffer)
+
+    output_buffer.seek(0)
+
+    return StreamingResponse(
+        output_buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=pixishift_merged.pdf"}
+    )
+
+async def compress_pdf(file):
+    
+    if file.content_type != 'application/pdf':
+        return {'message':'File is not a pdf'}
+    
+    contents = await file.read()
+    base_name = Path(file.filename).stem
+
+    pdf_file = pymupdf.open(stream=contents, filetype='pdf')
+
+    output_buffer = BytesIO()
+
+    pdf_file.save(output_buffer, garbage=4, deflate=True, clean=True)
+    
+    original_size = len(contents)
+    
+    output_buffer.seek(0)
+    compressed_size = len(output_buffer.read())
+    output_buffer.seek(0)
+
+    savings = round((1 - compressed_size / original_size) * 100, 2)
+    print(f"Reduced by {savings}%")
+    
+    return StreamingResponse(
+        output_buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={base_name}_compressed.pdf"}
+    )
+        
+        
