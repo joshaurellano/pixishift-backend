@@ -38,13 +38,15 @@ async def convert(file, out_img_format: str):
     )
 
 async def remove_bg(file):
-    from rembg import remove
+    from rembg import remove, new_session
     if 'image' not in file.content_type:
         return {'message': 'File is not an image'}
 
+    session = new_session("isnet-general-use")
+
     contents = await file.read()
     img = Image.open(BytesIO(contents))
-    removed = remove(img)
+    removed = remove(img, session=session)
 
     img_name = Path(file.filename).stem
     output_buffer = BytesIO()

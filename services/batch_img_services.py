@@ -59,10 +59,12 @@ async def batch_img_convert(files: List[UploadFile], out_img_format: str):
     )
 
 async def batch_img_remove_bg(files: List[UploadFile], quality: int = 80):
-    from rembg import remove
+    from rembg import remove, new_session
     # Validate batch size
     if len(files) > MAX_BATCH_FILES:
         return {'message': f'Maximum {MAX_BATCH_FILES} files allowed per batch'}
+
+    session = new_session("isnet-general-use")
 
     zip_buffer = BytesIO()
 
@@ -75,7 +77,7 @@ async def batch_img_remove_bg(files: List[UploadFile], quality: int = 80):
 
             contents = await file.read()
             img = Image.open(BytesIO(contents))
-            removed = remove(img)
+            removed = remove(img, session = session)
             img_name = Path(file.filename).stem
 
             output_buffer = BytesIO()
